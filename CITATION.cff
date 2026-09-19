@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "Please cite this version when using the study or its data."
+title: "Using Jev to choose the next action"
+type: dataset
+authors:
+  - family-names: Nagy
+    given-names: Ervin
+version: 1.0.0
+date-released: 2026-09-19
+repository-code: "https://github.com/NagyErvin-ZY/jev-action-selection-study"
+url: "https://github.com/NagyErvin-ZY/jev-action-selection-study/tree/v1.0.0"
+license: CC-BY-4.0
