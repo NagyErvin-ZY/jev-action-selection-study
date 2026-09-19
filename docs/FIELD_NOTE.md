@@ -1,62 +1,82 @@
-I wanted to see whether [Jev](https://openrouter.ai/typesafe/jev-1.13), TypeSafe's structured decision model, could steer a task through several steps. Algebra gave me a small environment where I could inspect every move and check the result exactly.
+I wanted to know whether [Jev](https://openrouter.ai/typesafe/jev-1.13) could choose what to do next inside a larger system. I was thinking about a research agent picking its next search, or a coding agent choosing a tool. Algebra gave me a place to examine that decision process with exact, inspectable consequences.
 
-Jev selected operations. A deterministic engine performed the arithmetic. Each decision offered ten sampled actions and a reroll, with explanations of what each action did. The engine detected completion. Limits on repeated states and stalled progress prevented a run from continuing indefinitely.
+My setup deliberately supplied help. Jev received ten legal actions plus a reroll. The prompt explained what each operation did and why it might help. Exact software performed the arithmetic. I wanted to test the selector with a usable interface. Repeated-state checks and reroll limits stopped it from going in circles indefinitely.
 
-One starting equation was `6(2x + 5) = 65`, stored with an extra grouping node. Its first menu included these options, shown here as shortened excerpts:
+The pilot used three equations of increasing complexity, with eight seeds each. The middle one began as:
 
-| Action | Description |
-|---|---|
-| Remove redundant grouping | Remove an unnecessary single-term sum on the left |
-| Add −65 to both sides | Preserve equality and combine an existing constant |
-| Multiply both sides by 1/2 | Preserve solutions without automatically expanding brackets |
-| Reroll | Keep the equation and draw another menu |
+$$
+\frac{3}{4}(2x-5)-\frac{1}{3}(x+1)=\frac{7}{4}.
+$$
 
-The [repository](https://github.com/NagyErvin-ZY/jev-action-selection-study/tree/v1.0.0) contains the full requests, including the less useful choices.
+Its first menu included distributing the factor outside a bracket. Other options added a constant to both sides or multiplied both sides by a nonzero number. The [saved requests](https://github.com/NagyErvin-ZY/jev-action-selection-study/tree/v1.1.0) retain the full instructions and exact expression structure.
 
-## The menu changed the outcome
+## Score every move it could have chosen
 
-I measured both individual decisions and complete runs. For a decision, I applied every offered algebra action to a copy of the equation, then calculated the remaining **reference-policy completion cost** under a fixed solver strategy. This let me score how Jev distributed probability across better and worse moves.
+The idea I became most interested in was the probability distribution. Jev returned a probability for every option. Because I controlled the environment, I could execute **every offered algebra action on a copy of the same state**, including the moves it did not choose.
 
-The score applies only to algebra operations. Reroll and premature completion are excluded. Jev's probabilities are not calibrated probabilities of successfully finishing the task.
+For each resulting equation, a fixed solver counted its remaining operations. I call that count **reference-policy completion cost**, $D$. It is deterministic, but it is not generally a proven shortest path.
 
-The main experiment used 128 generated states from eight equation families, alongside 24 saved states from the pilot. For complete runs, I used eight new equations with two seeds each.
+That gave me a way to compare the model's preferences with the consequences of its alternatives. I used two complementary scores:
 
-Three policies were fixed before those runs:
+- **Probability quality:** how much probability favoured the better end of the offered menu. First calculate expected regret, $R=\sum_a p_a(d_a-d_{\min})$, where $d_a$ is the reference cost after action $a$. Quality is $1-R/(d_{\max}-d_{\min})$.
+- **Pairwise alignment:** compare every pair with different costs. An ordering scores 1 when the better move receives more probability and 0 when the ordering is reversed. Probability ties score 0.5. Each pair is weighted by its reference-cost gap.
 
-| Policy | Completed |
-|---|---:|
-| Original prompt, random menus | **13/16** |
-| Combined prompt changes, random menus | **9/16** |
-| Combined prompt changes, reference-best move included | **16/16** |
+These answer different questions. Almost all probability can sit on a good move while tiny-probability alternatives are poorly ranked. Expected regret also retains a useful unit: reference moves above the best offered action.
 
-The combined prompt replaced ordinary equation text with a node table. Its action descriptions omitted generic benefit claims, and it supplied additional strategy guidance. It improved some local probability scores, but completed fewer runs. The fixed-state measurements and trajectories are different tests; a gain in one did not establish a gain in the other.
+I excluded reroll and completion declarations, then renormalised the algebra probabilities. Their excluded mass remains visible. These conditional preference scores do not establish probability calibration. Action costs also do not define a uniquely correct target distribution over choices.
 
-For the third policy, the controller ensured that each menu contained a move with the best reference-policy score. Jev still chose the action. That was external solver assistance, and it changed the observed completion rate substantially.
+![Every option from medium pilot seed 0, decision 13, with its reported probability and counterfactual reference cost. Reroll was selected.](figures/decision-distribution.png)
 
-![Completion across the three initial policies. All sixteen runs remain in each denominator, including failures.](figures/article-completion.png)
+[Open this chart at full size](figures/decision-distribution.svg).
 
-[View the full-size figure](https://raw.githubusercontent.com/NagyErvin-ZY/jev-action-selection-study/v1.0.0/docs/figures/article-completion.png).
+*An illustrative turn selected after analysis. The chart shows original reported probabilities; scoring conditions on the 53% assigned to algebra actions.*
 
-The figure retains failed runs in the denominator. Stopping early because a run is stuck cannot count as solving quickly. The supported-menu result leaves the model’s added value unresolved when software can already rank the actions effectively.
+Here Jev chose reroll with probability 46%. Among algebra choices, multiplying both sides by $1/3$ received **67.9% of the conditional mass**, although it raised reference cost from 8 to 11. Several alternatives kept the cost at 8. Pairwise alignment was zero: every unequal-cost pair was reversed.
 
-## Presentation mattered too
+No offered algebra action immediately reduced reference cost. The reroll avoided executing that multiplication, and the run eventually finished. Looking only at the executed action or eventual answer would hide the preference pattern.
 
-After seeing the initial results, I ran the six remaining combinations of the prompt changes on the same equations. Across the eight combinations, enabling our node-table representation was associated with a 26.6 percentage-point lower completion rate. Seven equations worsened and one tied when averaging the other factors and repeats.
+## Follow the preferences through a run
 
-This was a later, exploratory follow-up. Two prompt combinations came from the earlier batch, so collection phase is confounded with some interaction estimates. The observation concerns this particular replacement for ordinary equation text. It does not establish that structured prompts generally hurt.
+Across the pilot I scored **689 turns, 6,590 counterfactual actions and 20,915 unequal-cost pairs**. Averaging within each run and then weighting runs equally gave probability quality **0.845** and pairwise alignment **0.705**. Expected reference regret was **0.572 moves**, versus **1.971** for equal probability on the same offered algebra actions.
 
-Option order also changed decisions. On 16 fresh states used for side tests, reversing the options produced an average choice-change rate of 18.75% across repeat comparisons. Random-word labels alone produced 6.25%. Both comparisons map labels back to the underlying actions.
+![All 24 pilot runs, showing probability quality, pairwise alignment and expected reference regret, with matched-menu uniform baselines.](figures/distribution-summary.png)
 
-These findings make me want to inspect presentation stability before using a selector in a longer workflow. They do not tell me which internal mechanism caused the changes.
+[Open this chart at full size](figures/distribution-summary.svg).
 
-## What I would try next
+*Each dot is a run. The comparison uses the exact menus at visited states. Three equations with repeated seeds remain three problems; the dots are not independent evidence of broad algebra ability.*
 
-Bounded research navigation is one application I would test: offer distinct searches addressing an evidence gap, then record whether the selected search adds useful evidence. Tool selection inside a coding agent is another possibility, where tests can check the consequences of a choice.
+I also wanted to see what accumulated: whether the equation got closer to completion as the distribution changed. The stopping point needed to remain visible.
 
-Those uses need their own evaluations. The surrounding system supplied legal actions with exact feedback in this experiment. Research has a much harder evidence-quality problem. A cheap selector can still choose an expensive, unhelpful action, so the useful economic measure would be total cost per completed task.
+![Two medium-equation pilot trajectories with remaining reference cost, distribution scores, cumulative expected regret and reroll probability. The failed run ends at its actual cutoff.](figures/progress-and-preferences.png)
 
-## Evidence and reproduction
+[Open this chart at full size](figures/progress-and-preferences.svg).
 
-The study made 6,025 model requests on 19 September 2026. It cost **0.54 USD**. Including the pilot brings spending to **0.61 USD**. Eight families remain a small sample; repeated decisions do not create independent problems.
+*Seed 0 contains the example above. Seed 5 is the only failed repeat of the same equation. Dotted best-so-far cost exposes regressions; the orange X marks termination after three consecutive rerolls. All pilot runs remain inspectable in the evidence archive.*
 
-The [technical appendix](https://github.com/NagyErvin-ZY/jev-action-selection-study/blob/v1.0.0/docs/APPENDIX.md) includes all treatments and scoring definitions. It also documents an evaluator-dependent diagnosis that I corrected. The versioned repository preserves the evidence and provides offline reproduction of the reported results, with AI assistance disclosed in the methods.
+The cumulative regret line sums conditional expectations, including on reroll turns. It does **not** count executed wasted moves. Keeping it beside actual progress makes that distinction inspectable. A good conditional score can coexist with a weak menu. Repeated rerolls can still end the run without a solution.
+
+## Investigate where it breaks
+
+The next experiments varied problem structure and prompting to locate the source of the difficulty. The side tests changed option order and replaced labels with words drawn from a 100-word pool. I mapped these back to the same actions before comparing responses.
+
+The frozen main campaign added 128 states from eight equation families and 24 saved pilot states. Its initial complete-run comparison used eight new equations with two seeds each.
+
+![Combined-prompt local quality differences under three reference policies, followed by completion counts of 13/16, 9/16 and 16/16 for the initial policies.](figures/local-scores-and-completion.png)
+
+[Open this chart at full size](figures/local-scores-and-completion.svg).
+
+*Top: fixed-state evaluations, with exploratory intervals resampling eight families. Bottom: separate complete trajectories. Failed runs remain in every denominator.*
+
+The combined prompt replaced equation text with a node table. It also removed generic benefit claims from action descriptions and added strategy guidance. Its local gains depended on the evaluator; complete runs fell from **13/16 to 9/16**. Ensuring a reference-best move appeared in each menu brought completion to **16/16**. That supplied external solver assistance. It did not demonstrate an increase in model capability.
+
+The later, exploratory prompt follow-up associated our particular node-table representation with **26.6 percentage points lower completion**, averaging the other factors. Two combinations were collected earlier than the other six, leaving collection-phase confounding. On the 16 fresh side-test states, reversing option order changed the selected action in **18.75%** of repeat comparisons; random-word labels alone gave **6.25%**.
+
+I also had to check the measuring instrument. An apparent outer-expansion weakness changed substantially under different reference strategies. Bounded searches on eight targeted near-completion cases established five suboptimal decisions. One reference flag was a false positive; two cases remained unresolved. The [appendix](https://github.com/NagyErvin-ZY/jev-action-selection-study/blob/v1.1.0/docs/APPENDIX.md) keeps the initial interpretation beside its correction.
+
+## What I would take into another system
+
+I still see a use worth testing for a cheap action selector. I would give it an interface that explains its options and supplies worthwhile candidates, then check the outcome of each choice.
+
+For research navigation, I would test whether a selected search resolves a stated evidence gap. For coding, I would test tool choices against observable progress. This algebra experiment did not demonstrate either application. It gave me a way to inspect preferences and a reason to evaluate whole trajectories before trusting those preferences as a controller.
+
+The study cost approximately **$0.54**, or **$0.61 including the pilot**, on 19 September 2026. The [versioned repository](https://github.com/NagyErvin-ZY/jev-action-selection-study/tree/v1.1.0) preserves the underlying evidence and offline reproduction. Its appendix documents each collection phase separately and discloses AI-assisted implementation and drafting. Verification used programmatic checks and separate agent review.

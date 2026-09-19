@@ -1,6 +1,6 @@
 # Technical appendix: Jev action selection
 
-Version 1.0.0. Study date: 19 September 2026. This appendix distinguishes observations from possible applications. It is a practitioner experiment, not a peer-reviewed paper.
+Version 1.1.0. Study date: 19 September 2026. This appendix distinguishes observations from possible applications. It is a practitioner experiment, not a peer-reviewed paper.
 
 ## 1. Scope and sequence
 
@@ -135,3 +135,33 @@ The public archive removes provider generation identifiers and local filesystem 
 ## 9. Applications remain hypotheses
 
 Bounded research navigation and coding-tool selection are plausible next experiments because their actions can be constrained and outcomes inspected. Source evaluation, research sufficiency and safe stopping were not tested. This dataset does not establish an internal architectural cause, a comparative model ranking or a calibrated success predictor.
+
+## 10. Distribution figures added in v1.1.0
+
+This section accompanies the distribution-focused article revision. The v1.0.0 evidence archive and frozen sources are unchanged. No new model calls were made.
+
+`tools/build_field_note_figures.py` reconstructs all 689 pilot decisions from the saved response probabilities and episode states. It executes every offered algebra action, checks exact-root preservation, recomputes reference costs, and verifies the scores against the saved probability analysis. It then generates PNG and SVG figures plus `figure-data.json` and `source-checksums.json`. The normal offline reproduction command now runs this additional figure builder into `field-note-figures/`.
+
+| Quantity | Pilot result | Aggregation |
+|---|---:|---|
+| Scored turns | 689 | All 24 Jev episodes |
+| Counterfactual algebra actions | 6,590 | Excludes reroll and completion |
+| Unequal-cost action pairs | 20,915 | Equal-cost pairs excluded |
+| Probability quality | 0.845144 | Informative turns within run, then equal run weights |
+| Pairwise alignment | 0.704577 | Same weighting |
+| Expected reference regret | 0.571720 | Same weighting; reference moves |
+| Uniform expected reference regret | 1.970731 | Equal probability on the identical offered algebra actions |
+
+All 689 pilot turns were informative. The 24 runs use three fixed equations, eight seeds each. These descriptive averages are not estimates over 24 independent problems. Uniform probabilities are a matched-state counterfactual baseline, not a second controller visiting the same trajectory.
+
+The first figure uses the previously documented, post-hoc illustrative example `jev_medium_00`, decision 13. Raw probability mass is 0.53 on algebra, 0.46 on reroll and 0.01 on premature completion. Multiplying by 1/3 has raw probability 0.36, hence conditional probability 0.36/0.53 = 0.679245. It increases reference cost from 8 to 11. Quality is 0.238994, pairwise alignment 0, and expected regret 2.283019 reference moves. The selected action is reroll. Calling the multiplication an executed mistake would be incorrect.
+
+The trajectory figure shows the run containing that example and the sole failed medium repeat, seed 5. This is an explanatory, post-hoc selection, not a representative estimate. Both lines end at their observed termination; the failed run ends after three consecutive rerolls. Cumulative expected regret sums the conditional expected-regret score over decisions, including reroll decisions. It does not measure the realised excess length of the executed path. Full galleries retain all eight seeds for each equation.
+
+The local-versus-completion figure uses all 128 fresh fixed states for the combined-prompt difference. Its exploratory pointwise intervals resample eight equation families. The separate completion panel uses the initial 48 trajectories and retains 16 in every denominator. No per-run correlation between those panels is claimed.
+
+[Decision distribution](figures/decision-distribution.png) · [All-run score summary](figures/distribution-summary.png) · [Progress and preferences](figures/progress-and-preferences.png) · [Local scores and completion](figures/local-scores-and-completion.png)
+
+Full pilot galleries: [simple](figures/all-pilot-simple.png), [medium](figures/all-pilot-medium.png), [complex](figures/all-pilot-complex.png). SVG exports and plotted data accompany each figure in the same directory. The archived `jev-algebra/probability_viewer.html` exposes every scored action and contributing pair; `step_viewer.html` exposes the original per-step cumulative changes.
+
+Reader-facing figures call the highest-complexity pilot equation **Complex**. Its frozen dataset level remains `unholy`; this is a presentation rename only. The v1.0.0 evidence archive and source hashes are unchanged.

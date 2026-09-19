@@ -41,6 +41,7 @@ def main():
         with (logs/(script+'.log')).open('w') as log:
             subprocess.run([sys.executable,str(out/folder/script),*extra],cwd=out/folder,env=env,stdout=log,stderr=subprocess.STDOUT,check=True)
     subprocess.run([sys.executable,str(ROOT/'tools/verify_results.py'),str(out)],env=env,check=True)
+    subprocess.run([sys.executable,str(ROOT/'tools/build_field_note_figures.py'),'--evidence-root',str(out),'--output',str(out/'field-note-figures')],env=env,check=True)
     print('Verified. Article numbers: '+str(out/'headlines.json'))
     print('Article figure: '+str(out/'article-completion.png'))
 
